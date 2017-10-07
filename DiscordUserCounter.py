@@ -1,41 +1,56 @@
 import discord
-import logging
-from time import time
-# Project Imports
-import log
+import time
+import io
+import json
+import os
+import sys
 
-logging.basicConfig(level=logging.INFO)
 client = discord.Client()
 
+def setup():
+    client.loop.create_task(get_users())
+    client.run('YOUR_TOKEN')
 
-@client.event
-async def on_ready():
-    print('Logging in as ' + client.user.name)
-    print('Client ID: ' + client.user.id)
 
-    # log.log('\tGetting number of Discord users...')
-    # startTime = time()
+async def get_users():
 
     online = 0
     idle = 0
     offline = 0
 
-    for server in client.servers:
-        for member in server.members:
-            if str(member.status) == 'online':
-                online += 1
-            elif str(member.status) == 'idle':
-                idle += 1
-            elif str(member.status) == 'offline':
-                offline += 1
+    await client.wait_until_ready()
+    startTime = time.time()
+    while not client.is_closed:
+        for server in client.servers:
+            for member in server.members:
+                if str(member.status) == 'online':
+                    online += 1
+                elif str(member.status) == 'idle':
+                    idle += 1
+        await client.close()
 
-        # elapsedTime = '\BLUE(%s s)' % str(round(time() - startTime, 3))
-        # log.log('\t\t... done! %s' % elapsedTime)
-        print('Online: ' + str(online))
-        print('Idle: ' + str(idle))
-        print('Offline: ' + str(offline))
+    totalUsers = online + idle
+    updateJson('app-cache/discordusers.json', totalUsers)
 
-    return '1. []('link_to_discord_server_here') %d users ' % \
-           (online + idle), await client.close()
 
-client.run('token')
+def returnCount(total):
+    print('Total is {}'.format(str(total)))
+    updateJson('app-cache/discordusers.json', total)
+    return str(total)
+	
+	
+def updateJson(path, new_id):
+    newPath = ensureAbsPath(path)
+    with open(newPath, 'r') as f:
+        data = json.load(f) # Load json data into the buffer
+
+    tmp = data['users']
+    data['users'] = new_id
+
+    with open(newPath, 'w+') as f:
+        f.write(json.dumps(data)) # Write the new user count to the cache
+	
+	
+def ensureAbsPath(path):
+    botRootDir = os.path.dirname(os.path.abspath(sys.argv[0])) + '/'
+    return path if os.path.isabs(path) else botRootDir + path
